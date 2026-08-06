@@ -236,5 +236,49 @@ router.get("/stats", async(req,res)=>{
 
 
 });
+// =========================
+// DETAIL PLAYER
+// =========================
+
+router.get("/player/:id", async(req,res)=>{
+
+    try{
+
+
+        const player =
+        await Score.findOne({
+            playerId:req.params.id
+        });
+
+
+
+        if(!player){
+
+            return res.status(404)
+            .json({
+                message:"Player tidak ditemukan"
+            });
+
+        }
+
+
+
+        res.json(player);
+
+
+
+    }catch(error){
+
+
+        res.status(500)
+        .json({
+            message:error.message
+        });
+
+
+    }
+
+
+});
 
 module.exports = router;
