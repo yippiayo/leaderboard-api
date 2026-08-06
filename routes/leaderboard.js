@@ -162,6 +162,79 @@ router.post("/", async(req,res)=>{
 
 });
 
+// =========================
+// STATISTIK LEADERBOARD
+// =========================
 
+router.get("/stats", async(req,res)=>{
+
+    try{
+
+
+        const totalPlayer =
+        await Score.countDocuments();
+
+
+
+        const races =
+        await Score.aggregate([
+            {
+                $group:{
+                    _id:null,
+                    total:{
+                        $sum:"$totalRace"
+                    }
+                }
+            }
+        ]);
+
+
+
+        const best =
+        await Score.findOne()
+        .sort({
+            bestTime:1
+        });
+
+
+
+        res.json({
+
+            totalPlayer,
+
+            totalRace:
+            races.length > 0
+            ? races[0].total
+            : 0,
+
+
+            bestTime:
+            best
+            ? best.bestTime
+            : 0,
+
+
+            checkpoint:
+            best
+            ? best.checkpoint
+            : 0
+
+        });
+
+
+
+    }catch(error){
+
+
+        res.status(500)
+        .json({
+            message:error.message
+        });
+
+
+    }
+
+
+});
 
 module.exports = router;
