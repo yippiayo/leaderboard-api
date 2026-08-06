@@ -4,21 +4,26 @@ const router = express.Router();
 const Score = require("../models/Score");
 
 
-// Menampilkan leaderboard
-router.get("/", async (req,res)=>{
+// =========================
+// GET LEADERBOARD
+// =========================
 
-    try{
+router.get("/", async (req, res) => {
+
+    try {
 
         const leaderboard = await Score
-        .find()
-        .sort({bestTime: 1})
-        .limit(10);
+            .find()
+            .sort({
+                bestTime: 1
+            })
+            .limit(10);
 
 
         res.json(leaderboard);
 
 
-    }catch(error){
+    } catch(error) {
 
         res.status(500).json({
             message:error.message
@@ -30,59 +35,133 @@ router.get("/", async (req,res)=>{
 
 
 
-// Menambah atau update score
+
+// =========================
+// POST SCORE
+// =========================
+
 router.post("/", async(req,res)=>{
 
-    try{
+    try {
 
-        const { playerId, username, bestTime } = req.body;
-        console.log(req.body);
+
+        const {
+            playerId,
+            username,
+            bestTime
+        } = req.body;
+
+
+
+        const newTime = Number(bestTime);
+
+
+
+        console.log({
+            playerId,
+            username,
+            newTime
+        });
+
+
 
         let player = await Score.findOne({
-    playerId: playerId
-});
+            playerId
+        });
 
-if (player) {
 
-    if (bestTime < player.bestTime) {
-        player.bestTime = bestTime;
-    }
 
-    player.totalRace += 1;
-    player.updatedAt = Date.now();
+        // PLAYER SUDAH ADA
 
-    await player.save();
+        if(player){
 
-} else {
 
-    player = new Score({
-        playerId,
-        username,
-        bestTime,
-        totalRace: 1,
-        checkpoint: 2
-    });
+            // update username terbaru
+            player.username = username;
 
-    await player.save();
 
-}
+
+            // hanya ambil waktu terbaik
+
+            if(newTime < player.bestTime){
+
+                player.bestTime = newTime;
+
+            }
+
+
+
+            // tambah jumlah permainan
+
+            player.totalRace += 1;
+
+
+
+            player.updatedAt = Date.now();
+
+
+
+            await player.save();
+
+
+
+        }
+
+
+
+        // PLAYER BARU
+
+        else {
+
+
+            player = new Score({
+
+                playerId,
+
+                username,
+
+                bestTime:newTime,
+
+                totalRace:1,
+
+                checkpoint:2
+
+            });
+
+
+            await player.save();
+
+
+        }
+
 
 
         res.json({
-            message:"Score berhasil disimpan",
+
+            message:
+            "Score berhasil disimpan",
+
             data:player
+
         });
 
 
-    }catch(error){
+
+    } catch(error){
+
 
         res.status(500).json({
+
             message:error.message
+
         });
+
 
     }
 
+
 });
+
 
 
 module.exports = router;
