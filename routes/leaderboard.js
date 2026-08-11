@@ -4,9 +4,9 @@ const router = express.Router();
 const Score = require("../models/Score");
 
 
-// =========================
+// =========================================================
 // GET LEADERBOARD
-// =========================
+// =========================================================
 
 router.get("/", async (req, res) => {
 
@@ -20,13 +20,27 @@ router.get("/", async (req, res) => {
             .limit(10);
 
 
-        res.json(leaderboard);
+        return res.status(200).json(
+            leaderboard
+        );
 
 
-    } catch(error) {
+    } catch (error) {
 
-        res.status(500).json({
-            message:error.message
+        console.error(
+            "GET leaderboard error:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            message:
+                "Gagal mengambil leaderboard",
+
+            error:
+                error.message
+
         });
 
     }
@@ -34,251 +48,486 @@ router.get("/", async (req, res) => {
 });
 
 
-
-
-// =========================
+// =========================================================
 // POST SCORE
-// =========================
+// =========================================================
 
-router.post("/", async(req,res)=>{
+router.post("/", async (req, res) => {
 
     try {
 
+        // =================================================
+        // AMBIL DATA REQUEST
+        // =================================================
 
         const {
+
             playerId,
             username,
             bestTime
-        } = req.body;
+
+        } = req.body || {};
 
 
+        // =================================================
+        // VALIDASI PLAYER ID
+        // =================================================
 
-        const newTime = Number(bestTime);
+        if (
 
+            playerId === undefined ||
+            playerId === null ||
+            String(playerId).trim() === ""
 
+        ) {
 
-        console.log({
-            playerId,
-            username,
-            newTime
-        });
+            return res.status(400).json({
 
+                message:
+                    "playerId wajib diisi"
 
-
-        let player = await Score.findOne({
-            playerId
-        });
-
-
-
-        // PLAYER SUDAH ADA
-
-        if(player){
-
-
-            // update username terbaru
-            player.username = username;
-
-
-
-            // hanya ambil waktu terbaik
-
-            if(newTime < player.bestTime){
-
-                player.bestTime = newTime;
-
-            }
-
-
-
-            // tambah jumlah permainan
-
-            player.totalRace += 1;
-
-
-
-            player.updatedAt = Date.now();
-
-
-
-            await player.save();
-
-
+            });
 
         }
 
 
+        // =================================================
+        // VALIDASI USERNAME
+        // =================================================
 
-        // PLAYER BARU
+        if (
 
-        else {
+            username === undefined ||
+            username === null ||
+            String(username).trim() === ""
+
+        ) {
+
+            return res.status(400).json({
+
+                message:
+                    "username wajib diisi"
+
+            });
+
+        }
 
 
-            player = new Score({
+        // =================================================
+        // VALIDASI BEST TIME
+        // =================================================
 
-                playerId,
+        if (
 
-                username,
+            bestTime === undefined ||
+            bestTime === null ||
+            bestTime === ""
 
-                bestTime:newTime,
+        ) {
 
-                totalRace:1,
+            return res.status(400).json({
 
-                checkpoint:2
+                message:
+                    "bestTime wajib diisi"
+
+            });
+
+        }
+
+
+        // Konversi bestTime menjadi Number
+        const newTime =
+            Number(bestTime);
+
+
+        // Pastikan nilainya angka valid
+        if (
+
+            !Number.isFinite(newTime) ||
+            newTime <= 0
+
+        ) {
+
+            return res.status(400).json({
+
+                message:
+                    "bestTime harus berupa angka lebih dari 0"
+
+            });
+
+        }
+
+
+        // =================================================
+        // NORMALISASI DATA
+        // =================================================
+
+        const normalizedPlayerId =
+            String(playerId).trim();
+
+
+        const normalizedUsername =
+            String(username).trim();
+
+
+        console.log({
+
+            playerId:
+                normalizedPlayerId,
+
+            username:
+                normalizedUsername,
+
+            newTime
+
+        });
+
+
+        // =================================================
+        // CARI PLAYER
+        // =================================================
+
+        let player =
+            await Score.findOne({
+
+                playerId:
+                    normalizedPlayerId
 
             });
 
 
-            await player.save();
+        // =================================================
+        // PLAYER SUDAH ADA
+        // =================================================
 
+        if (player) {
+
+            // Update username terbaru
+            player.username =
+                normalizedUsername;
+
+
+            // =============================================
+            // HANYA SIMPAN BEST TIME YANG LEBIH CEPAT
+            // =============================================
+
+            if (
+                newTime <
+                player.bestTime
+            ) {
+
+                player.bestTime =
+                    newTime;
+
+            }
+
+
+            // =============================================
+            // TAMBAH TOTAL RACE
+            // =============================================
+
+            player.totalRace =
+                Number(
+                    player.totalRace || 0
+                ) + 1;
+
+
+            // =============================================
+            // UPDATE WAKTU
+            // =============================================
+
+            player.updatedAt =
+                Date.now();
+
+
+            await player.save();
 
         }
 
 
+        // =================================================
+        // PLAYER BARU
+        // =================================================
 
-        res.json({
+        else {
+
+            player =
+                new Score({
+
+                    playerId:
+                        normalizedPlayerId,
+
+                    username:
+                        normalizedUsername,
+
+                    bestTime:
+                        newTime,
+
+                    totalRace:
+                        1,
+
+                    checkpoint:
+                        2
+
+                });
+
+
+            await player.save();
+
+        }
+
+
+        // =================================================
+        // RESPONSE
+        // =================================================
+
+        return res.status(200).json({
 
             message:
-            "Score berhasil disimpan",
+                "Score berhasil disimpan",
 
-            data:player
-
-        });
-
-
-
-    } catch(error){
-
-
-        res.status(500).json({
-
-            message:error.message
+            data:
+                player
 
         });
 
+
+    } catch (error) {
+
+        console.error(
+            "POST score error:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            message:
+                "Gagal menyimpan score",
+
+            error:
+                error.message
+
+        });
 
     }
 
-
 });
 
-// =========================
+
+// =========================================================
 // STATISTIK LEADERBOARD
-// =========================
+// =========================================================
 
-router.get("/stats", async(req,res)=>{
+router.get("/stats", async (req, res) => {
 
-    try{
+    try {
 
+        // =================================================
+        // TOTAL PLAYER
+        // =================================================
 
         const totalPlayer =
-        await Score.countDocuments();
+            await Score.countDocuments();
 
 
+        // =================================================
+        // TOTAL RACE
+        // =================================================
 
         const races =
-        await Score.aggregate([
-            {
-                $group:{
-                    _id:null,
-                    total:{
-                        $sum:"$totalRace"
+            await Score.aggregate([
+
+                {
+
+                    $group: {
+
+                        _id: null,
+
+                        total: {
+                            $sum:
+                                "$totalRace"
+                        }
+
                     }
+
                 }
-            }
-        ]);
+
+            ]);
 
 
+        // =================================================
+        // BEST PLAYER
+        // =================================================
 
         const best =
-        await Score.findOne()
-        .sort({
-            bestTime:1
-        });
+            await Score
+                .findOne()
+                .sort({
+
+                    bestTime: 1
+
+                });
 
 
+        // =================================================
+        // RESPONSE
+        // =================================================
 
-        res.json({
+        return res.status(200).json({
 
             totalPlayer,
 
             totalRace:
-            races.length > 0
-            ? races[0].total
-            : 0,
 
+                races.length > 0
+
+                    ? races[0].total
+
+                    : 0,
 
             bestTime:
-            best
-            ? best.bestTime
-            : 0,
 
+                best
+
+                    ? best.bestTime
+
+                    : 0,
 
             checkpoint:
-            best
-            ? best.checkpoint
-            : 0
+
+                best
+
+                    ? best.checkpoint
+
+                    : 0
 
         });
 
 
+    } catch (error) {
 
-    }catch(error){
+        console.error(
+            "GET stats error:",
+            error
+        );
 
 
-        res.status(500)
-        .json({
-            message:error.message
+        return res.status(500).json({
+
+            message:
+                "Gagal mengambil statistik",
+
+            error:
+                error.message
+
         });
-
 
     }
 
-
 });
-// =========================
+
+
+// =========================================================
 // DETAIL PLAYER
-// =========================
+// =========================================================
 
-router.get("/player/:id", async(req,res)=>{
+router.get(
+    "/player/:id",
+    async (req, res) => {
 
-    try{
+        try {
+
+            const id =
+                String(
+                    req.params.id || ""
+                ).trim();
 
 
-        const player =
-        await Score.findOne({
-            playerId:req.params.id
-        });
+            // =============================================
+            // VALIDASI ID
+            // =============================================
+
+            if (!id) {
+
+                return res
+                    .status(400)
+                    .json({
+
+                        message:
+                            "Player ID tidak valid"
+
+                    });
+
+            }
 
 
+            // =============================================
+            // CARI PLAYER
+            // =============================================
 
-        if(!player){
+            const player =
+                await Score.findOne({
 
-            return res.status(404)
-            .json({
-                message:"Player tidak ditemukan"
-            });
+                    playerId:
+                        id
+
+                });
+
+
+            // =============================================
+            // PLAYER TIDAK DITEMUKAN
+            // =============================================
+
+            if (!player) {
+
+                return res
+                    .status(404)
+                    .json({
+
+                        message:
+                            "Player tidak ditemukan"
+
+                    });
+
+            }
+
+
+            // =============================================
+            // RESPONSE
+            // =============================================
+
+            return res
+                .status(200)
+                .json(
+                    player
+                );
+
+
+        } catch (error) {
+
+            console.error(
+                "GET player error:",
+                error
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    message:
+                        "Gagal mengambil data player",
+
+                    error:
+                        error.message
+
+                });
 
         }
 
-
-
-        res.json(player);
-
-
-
-    }catch(error){
-
-
-        res.status(500)
-        .json({
-            message:error.message
-        });
-
-
     }
+);
 
-
-});
 
 module.exports = router;
